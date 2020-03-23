@@ -1,0 +1,30 @@
+int faderValuePin = A0;
+int faderValue = 0, prevFaderValue = 0, value = 0;
+
+#define SERIAL_RATE 38400
+#define Control_Change1 0xB0
+
+uint8_t MidiCommand = 7;
+
+void setup() {
+  Serial.begin(SERIAL_RATE);
+  pinMode(faderValuePin, INPUT);
+}
+
+void loop(){
+  getFaderValue();
+  sendCC(Control_Change1, MidiCommand, value);
+}
+
+void getFaderValue(){
+  prevFaderValue = value;
+  faderValue = analogRead(faderValuePin);
+  value = map(faderValue, 0, 1023, 0 , 127); 
+  Serial.println(value);
+}
+
+void sendCC(byte type, byte command, byte value){
+  Serial.write(type);
+  Serial.write(command);
+  Serial.write(value);
+}
