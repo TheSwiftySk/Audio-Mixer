@@ -1,0 +1,56 @@
+int motorPin1 = 2, motorPin2 = 3, enablePin = A1, faderValuePin = A0;
+int faderValue = 0;
+int motorSpeed;
+int const maxMotorSpeed = 255;
+
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(faderValuePin, INPUT);
+  pinMode(enablePin, OUTPUT);
+  pinMode(motorPin2, OUTPUT);
+  pinMode(motorPin1, OUTPUT);
+  
+}
+
+void loop() {
+  analogWrite(enablePin, 255);
+
+  setValue(100);
+}
+
+void setValue(int newValue){
+  int startValue = getValue();
+
+  if(newValue != startValue){
+    if(newValue > startValue){
+      while(getValue() < newValue){
+
+        motorSpeed = newValue - getValue();
+        Serial.println(motorSpeed);
+        Serial.println(getValue());
+        analogWrite(enablePin, motorSpeed);
+        
+        digitalWrite(motorPin2, LOW);
+        digitalWrite(motorPin1, HIGH);
+      }
+      digitalWrite(motorPin1, LOW);
+      digitalWrite(motorPin2, LOW);
+    }
+    else if(newValue < startValue){ //decrece
+      while(getValue() > newValue){
+
+        motorSpeed = getValue() - newValue;
+        Serial.println(motorSpeed);
+        analogWrite(enablePin, motorSpeed);
+        
+        
+        digitalWrite(motorPin2, HIGH);
+        digitalWrite(motorPin1, LOW);
+      }
+      digitalWrite(motorPin1, LOW);
+      digitalWrite(motorPin2, LOW);
+    } 
+
+  }
+}
