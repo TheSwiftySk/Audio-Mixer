@@ -1,0 +1,147 @@
+#define SERIAL_RATE 38400
+
+#define Control_Change 0xB
+#define Control_Volume 7
+
+uint8_t MidiCommand = 7; //volume control
+
+int motor1PinA = 2, motor1PinB = 3, enablePin1 = 4;
+int motor2PinA = 13, motor2PinB = 14, enablePin2 = 11;
+
+int fadersCount = 0, faderValuePin = A0;
+
+
+class Fader{
+  private:
+    int faderNum;
+    int motorPinA, motorPinB;
+    int enablePin;
+    int faderValue, prevFaderValue;
+  public:
+    fader(){
+      fadersCount++;
+      this->faderNum = fadersCount;
+      
+      if(this->faderNum == 1){
+        this->motorPinA = motor1PinA;
+        this->motorPinB = motor1PinB;
+        this->enablePin = enablePin1;
+      }
+      else if(this->faderNum == 2){
+        this->motorPinA = motor2PinA;
+        this->motorPinB = motor2PinB;
+        this->enablePin = enablePin2;
+      }
+      
+      this->faderValue = 0;
+      this->prevFaderValue = 0;
+    }
+
+  int getFaderValue(){
+    prevFaderValue = faderValue;
+    
+    if(faderNum = 1) faderValuePin = A0;
+    else if(faderNum = 2) faderValuePin = A1;
+    
+    faderValue = analogRead(faderValuePin);
+    faderValue = map(faderValue, 0, 1023, 0 , 127); 
+  
+    Serial.println(faderValue);
+    return faderValue;  
+  }
+    
+  void moveFaderTo(int newValue){
+    
+    int motorSpeed = 255;
+    int faderPositon = this->getFaderValue();
+    int distance;
+    
+    if(faderPositon < newValue){
+      digitalWrite(enablePin, HIGH);
+      
+      while(faderPositon < newValue){
+        distance = newValue - faderPositon;
+        motorSpeed = distance + 100;
+        analogWrite(motorPinA, motorSpeed);
+        analogWrite(motorPinB, LOW);
+      }
+      digitalWrite(enablePin, LOW);    
+    }
+    else if(faderPositon > newValue){
+      digitalWrite(enablePin, HIGH);
+      
+      while(faderPositon > newValue){
+        distance = faderPositon - newValue;
+        motorSpeed = distance + 100;
+        analogWrite(motorPinA, LOW);
+        analogWrite(motorPinB, motorSpeed);
+      }
+      digitalWrite(enablePin, LOW);    
+    }
+  }   
+};
+
+void sendCC(byte type, byte command, byte value){
+  Serial.write(type);
+  Serial.write(command);
+  Serial.write(value);
+}
+
+
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(enablePin1, OUTPUT);
+  pinMode(motor1PinA, OUTPUT);
+  pinMode(motor1PinB, OUTPUT);
+  
+  pinMode(enablePin2, OUTPUT);
+  pinMode(motor2PinA, OUTPUT);
+  pinMode(motor2PinB, OUTPUT);
+  
+  pinMode(A0, INPUT);
+  pinMode(A1, INPUT);
+}
+
+void loop() { 
+  Fader fader1;
+  Fader fader2;
+  
+  fader1.moveFaderTo(90);
+  
+  int value;
+
+  value = fader1.getFaderValue();
+  sendCC(Control_Change & 0, MidiCommand, value);
+  value = fader2.getFaderValue();
+  sendCC(Control_Change & 1, MidiCommand, value);
+  readCC(fader1, fader2);
+  
+}
+
+void readCC(Fader fader1, Fader fader2){
+  byte statusByte, functionByte, valueByte;
+  byte channel, command;
+  
+  if (Serial.available() > 0){
+      statusByte = Serial.read(); //read status byte
+
+      command = statusByte & B11110000;
+      channel = statusByte & B00001111;
+      
+      if(command = Control_Change){
+        functionByte = Serial.read();   //read function byte
+        if(functionByte = Control_Volume){
+          valueByte = Serial.read();       //read value byte
+          if(channel == 1 && valueByte != fader1.getFaderValue()){
+            //return value;
+            fader1.moveFaderTo(valueByte);
+          }
+          else if(channel == 2 && valueByte != fader2.getFaderValue()){
+            //return value;
+            fader2.moveFaderTo(valueByte);
+          }
+        }
+     }
+  }
+}
